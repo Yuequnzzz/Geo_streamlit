@@ -4,6 +4,9 @@ import numpy as np
 import pydeck as pdk
 import os
 import pandas as pd
+from shapely import wkt
+from copy import deepcopy
+
 
 
 def get_all_test_id(grid_type):
@@ -107,21 +110,32 @@ class GridVisualize:
         self.nodes.loc[osmid_sub, 'b'] = 164
         return self.nodes, self.edges
 
-    def draw_layers(self):
+    def draw_layers(self, pitch=None):
         """
         This function draws the layers, including ScatterplotLayer and PathLayer
         :return:
         """
         # data preprocessing
         self.nodes, self.edges = self.data_preprocessing_for_drawing()
+        # # provide the map styles TODO: CANNOT CHANGE THE MAP STYLE
+        # available_map_styles = {'road': pdk.map_styles.ROAD, 'satellite': "mapbox://styles/mapbox/satellite-v9"}
+        # # add buttons to choose the map style
+        # map_style = st.selectbox("Map style", list(available_map_styles.keys()))
+        # get the map style
+        mapstyle = st.sidebar.selectbox(
+            "Choose Map Style for %s:" % self.test_id,
+            options=["light", "dark", "satellite", "road"],
+            format_func=str.capitalize,
+            key=self.grid_type,
+        )
         # add a layer to show the edges and nodes
-        st.write(pdk.Deck(
-            map_style="mapbox://styles/mapbox/light-v9",
+        pydeck_layers = pdk.Deck(
+            map_style=f"{mapstyle}",  # pdk.map_styles.ROAD,
             initial_view_state={
                 "latitude": self.get_initial_middle_point()[0],
                 "longitude": self.get_initial_middle_point()[1],
                 "zoom": self.get_initial_zoom(),
-                # "pitch": 80,
+                "pitch": pitch,
             },
             layers=[
                 pdk.Layer(
@@ -151,8 +165,12 @@ class GridVisualize:
                     get_line_color=[0, 0, 0],
                 ),
             ]
-        ))
-        return
+        )
+        st.write(pydeck_layers)
+        # add a button to make the map back to the initial view
+        if st.button('Reset the map for %s' % self.test_id):
+            pydeck_layers.update()
+        return pydeck_layers
 
     def get_statistics(self):
         """
@@ -172,13 +190,20 @@ class GridVisualize:
         This function shows the statistics of the demand
         :return:
         """
-        # get the statistics of the demand
+        # get the statistics of the demand in the unit of MW
         min_dmd, max_dmd, avg_dmd, std_dmd, total_dmd, num_dmd = self.get_statistics()
         # show the statistics in a table
-        st.write("The statistics of the demand (kW)")
-        df = {'min': [min_dmd], 'max': [max_dmd], 'average': [avg_dmd], 'standard deviation': [std_dmd],
-              'total': [total_dmd],
-              'number of loads': [num_dmd]}
+        if self.grid_type=='MV':
+            st.write("The statistics of the demand (MW)")
+            df = {'min': [min_dmd], 'max': [max_dmd], 'average': [avg_dmd], 'standard deviation': [std_dmd],
+                  'total': [total_dmd],
+                  'number of loads': [num_dmd]}
+        else:
+            st.write("The statistics of the demand (kW)")
+            df = {'min': [min_dmd*1000], 'max': [max_dmd*1000], 'average': [avg_dmd*1000],
+                  'standard deviation': [std_dmd*1000],
+                  'total': [total_dmd*1000],
+                  'number of loads': [num_dmd]}
         df = pd.DataFrame(df)
         st.write(df)
         return
@@ -190,17 +215,63 @@ if __name__ == '__main__':
     st.title("The MV network")
     # get all the test IDs
     list_ids = get_all_test_id('MV')
-    # create a box to type in the ID of the test case
+    # create a text field to type in the ID of the test case
     st.subheader("Please enter the ID of the test case")
-    test_case = st.selectbox("test case ID", list_ids)
+    test_case = st.text_input("test case ID", list_ids[0])
+    # check if the test case ID is valid
+    if test_case not in list_ids:
+        st.write("Please enter a valid test case ID")
+        st.stop()
+
+    # create a checkbox that can be clicked to show all possible test IDs
+    if st.checkbox('Show all possible test IDs'):
+
+        # write them into a table of ten columns
+        if len(list_ids) % 5 != 0:
+            # add some empty elements to make the length of the list a multiple of 10
+            list_ids = list_ids + [''] * (5 - len(list_ids) % 5)
+        st.table(pd.DataFrame(np.array(list_ids).reshape(-1, 5), columns=['col 1', 'col 2', 'col 3', 'col 4', 'col 5']))
+        # darken the background of the table
+        st.markdown(""" <style>
+        table td:nth-child(1) {
+            background-color: #e6e6e6;
+        }
+        table td:nth-child(2) {
+            background-color: #e6e6e6;
+        }
+        table td:nth-child(3) {
+            background-color: #e6e6e6;
+        }
+        table td:nth-child(4) {
+            background-color: #e6e6e6;
+        }
+        table td:nth-child(5) {
+            background-color: #e6e6e6;
+        }
+        table td:nth-child(6) {
+        background-color: #e6e6e6;
+        }
+        </style> """, unsafe_allow_html=True)
+
     # create a object of the class
     mv = GridVisualize('MV', test_case)
+    # add a slider to adjust the pitch
+    pitch = st.slider('Pitch', 0, 60, 30)
     # draw the layers
-    mv.draw_layers()
+    mv_layers = mv.draw_layers(pitch=pitch)
     # add some legend for substation and demand nodes, including a logo with the color
     st.write("🟢Substation  🔴Demand node")
     # show the statistics in a table
     mv.show_statistics()
+    # process the shown nodes, transform the geometry to wkt
+    mv_show_nodes = deepcopy(mv.nodes)
+    mv_show_nodes.geometry.to_wkt()  # todo: not solved
+    # add a checkbox that can be clicked to show the raw data
+    if st.checkbox('Show raw data of MV %s' % test_case):
+
+        # mv.nodes['str_geo'] = mv.nodes.geometry.apply(lambda x: wkt.dumps(x))
+        st.dataframe(pd.DataFrame(mv_show_nodes))  # todo: cannot scroll down
+        # st.write(mv.edges)
 
     # --------------------------- LV network ---------------------------
     # set the title of the page
@@ -213,9 +284,13 @@ if __name__ == '__main__':
     # create a object of the class
     lv = GridVisualize('LV', test_case_lv)
     # draw the layers
-    lv.draw_layers()
+    lv_layers = lv.draw_layers()
     # add some legend for substation and demand nodes, including a logo with the color
     st.write("🟢Substation  🔴Demand node")
     # show the statistics in a table
     lv.show_statistics()
+    # add a checkbox that can be clicked to show the raw data
+    if st.checkbox('Show raw data of MV %s' % test_case_lv):
+        st.write(lv.nodes)
+        st.write(lv.edges)
 
