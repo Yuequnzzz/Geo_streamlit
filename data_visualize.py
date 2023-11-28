@@ -280,7 +280,42 @@ if __name__ == '__main__':
     list_ids_lv = get_all_test_id('LV')
     # create a box to type in the ID of the test case
     st.subheader("Please enter the ID of the test case")
-    test_case_lv = st.selectbox("test case ID", list_ids_lv)
+    test_case_lv = st.text_input("test case ID", list_ids[0])
+    # check if the test case ID is valid
+    if test_case_lv not in list_ids_lv:
+        st.write("Please enter a valid test case ID")
+        st.stop()
+
+    # create a checkbox that can be clicked to show all possible test IDs
+    if st.checkbox('Show all possible test IDs'):
+
+        # write them into a table of ten columns
+        if len(list_ids_lv) % 5 != 0:
+            # add some empty elements to make the length of the list a multiple of 10
+            list_ids_lv = list_ids_lv + [''] * (5 - len(list_ids_lv) % 5)
+        st.table(pd.DataFrame(np.array(list_ids_lv).reshape(-1, 5), columns=['col 1', 'col 2', 'col 3', 'col 4', 'col 5']))
+        # darken the background of the table
+        st.markdown(""" <style>
+            table td:nth-child(1) {
+                background-color: #e6e6e6;
+            }
+            table td:nth-child(2) {
+                background-color: #e6e6e6;
+            }
+            table td:nth-child(3) {
+                background-color: #e6e6e6;
+            }
+            table td:nth-child(4) {
+                background-color: #e6e6e6;
+            }
+            table td:nth-child(5) {
+                background-color: #e6e6e6;
+            }
+            table td:nth-child(6) {
+            background-color: #e6e6e6;
+            }
+            </style> """, unsafe_allow_html=True)
+
     # create a object of the class
     lv = GridVisualize('LV', test_case_lv)
     # draw the layers
