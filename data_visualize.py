@@ -217,14 +217,14 @@ if __name__ == '__main__':
     list_ids = get_all_test_id('MV')
     # create a text field to type in the ID of the test case
     st.subheader("Please enter the ID of the test case")
-    test_case = st.text_input("test case ID", list_ids[0])
+    test_case = st.text_input("test case ID", list_ids[0], key='MV_text_input')
     # check if the test case ID is valid
     if test_case not in list_ids:
         st.write("Please enter a valid test case ID")
         st.stop()
 
     # create a checkbox that can be clicked to show all possible test IDs
-    if st.checkbox('Show all possible test IDs'):
+    if st.checkbox('Show all possible test IDs', key='MV_checkbox'):
 
         # write them into a table of ten columns
         if len(list_ids) % 5 != 0:
@@ -280,14 +280,14 @@ if __name__ == '__main__':
     list_ids_lv = get_all_test_id('LV')
     # create a box to type in the ID of the test case
     st.subheader("Please enter the ID of the test case")
-    test_case_lv = st.text_input("test case ID", list_ids[0])
+    test_case_lv = st.text_input("test case ID", list_ids_lv[0], key='LV_text_input')
     # check if the test case ID is valid
     if test_case_lv not in list_ids_lv:
         st.write("Please enter a valid test case ID")
         st.stop()
 
     # create a checkbox that can be clicked to show all possible test IDs
-    if st.checkbox('Show all possible test IDs'):
+    if st.checkbox('Show all possible test IDs', key='LV_checkbox'):
 
         # write them into a table of ten columns
         if len(list_ids_lv) % 5 != 0:
