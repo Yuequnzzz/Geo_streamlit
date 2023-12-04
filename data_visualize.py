@@ -4,9 +4,7 @@ import numpy as np
 import pydeck as pdk
 import os
 import pandas as pd
-from shapely import wkt
 from copy import deepcopy
-
 
 
 def get_all_test_id(grid_type):
@@ -28,6 +26,45 @@ def get_all_test_id(grid_type):
 
 
 # create a class containing the functions to visualize the data
+def show_all_possible_test_ids(id_list):
+    """
+    This function shows all the possible test IDs
+    :param id_list: list, all the possible test IDs
+    :return:
+    """
+    # write them into a table of 5 columns
+    if len(id_list) % 5 != 0:
+        # add some empty elements to make the length of the list a multiple of 10
+        id_list = id_list + [''] * (5 - len(id_list) % 5)
+    df = pd.DataFrame(np.array(id_list).reshape(-1, 5))
+    style = df.style.hide_index()
+    style.hide_columns()
+    st.write(style.to_html(), unsafe_allow_html=True)
+
+    # darken the background of the table
+    st.markdown(""" <style>
+    table td:nth-child(1) {
+        background-color: #e6e6e6;
+    }
+    table td:nth-child(2) {
+        background-color: #e6e6e6;
+    }
+    table td:nth-child(3) {
+        background-color: #e6e6e6;
+    }
+    table td:nth-child(4) {
+        background-color: #e6e6e6;
+    }
+    table td:nth-child(5) {
+        background-color: #e6e6e6;
+    }
+    table td:nth-child(6) {
+    background-color: #e6e6e6;
+    }
+    </style> """, unsafe_allow_html=True)
+    return
+
+
 class GridVisualize:
     def __init__(self, grid_type, test_id):
         self.grid_type = grid_type
@@ -117,20 +154,17 @@ class GridVisualize:
         """
         # data preprocessing
         self.nodes, self.edges = self.data_preprocessing_for_drawing()
-        # # provide the map styles TODO: CANNOT CHANGE THE MAP STYLE
-        # available_map_styles = {'road': pdk.map_styles.ROAD, 'satellite': "mapbox://styles/mapbox/satellite-v9"}
-        # # add buttons to choose the map style
-        # map_style = st.selectbox("Map style", list(available_map_styles.keys()))
         # get the map style
         mapstyle = st.sidebar.selectbox(
             "Choose Map Style for %s:" % self.test_id,
-            options=["light", "dark", "satellite", "road"],
+            options=["road", "satellite"],
             format_func=str.capitalize,
             key=self.grid_type,
         )
+        available_map_styles = {'road': pdk.map_styles.ROAD, 'satellite': 'mapbox://styles/mapbox/satellite-v9'}
         # add a layer to show the edges and nodes
         pydeck_layers = pdk.Deck(
-            map_style=f"{mapstyle}",  # pdk.map_styles.ROAD,
+            map_style=f"{available_map_styles[mapstyle]}",
             initial_view_state={
                 "latitude": self.get_initial_middle_point()[0],
                 "longitude": self.get_initial_middle_point()[1],
@@ -208,6 +242,33 @@ class GridVisualize:
         st.write(df)
         return
 
+    def show_raw_data(self):
+        """
+        This function shows the raw data of the network
+        :return:
+        """
+        # data preprocessing, transform the geometry to wkt
+        # for nodes
+        show_nodes = deepcopy(self.nodes)
+        show_nodes['geo'] = show_nodes.geometry.to_wkt()
+        # replace the geometry with the wkt
+        show_nodes.drop(columns=['geometry'], inplace=True)
+        show_nodes.rename(columns={'geo': 'geometry'}, inplace=True)
+        # for edges
+        show_edges = deepcopy(self.edges)
+        show_edges['geo'] = show_edges.geometry.to_wkt()
+        # replace the geometry with the wkt
+        show_edges.drop(columns=['geometry'], inplace=True)
+        show_edges.rename(columns={'geo': 'geometry'}, inplace=True)
+
+        # show the raw data
+        if st.checkbox('Show raw data of %s' % self.test_id):
+            st.subheader('Nodes')
+            st.dataframe(pd.DataFrame(show_nodes))
+            st.subheader('Edges')
+            st.dataframe(pd.DataFrame(show_edges))
+        return
+
 
 if __name__ == '__main__':
     # --------------------------- MV network ---------------------------
@@ -225,33 +286,7 @@ if __name__ == '__main__':
 
     # create a checkbox that can be clicked to show all possible test IDs
     if st.checkbox('Show all possible test IDs', key='MV_checkbox'):
-
-        # write them into a table of ten columns
-        if len(list_ids) % 5 != 0:
-            # add some empty elements to make the length of the list a multiple of 10
-            list_ids = list_ids + [''] * (5 - len(list_ids) % 5)
-        st.table(pd.DataFrame(np.array(list_ids).reshape(-1, 5), columns=['col 1', 'col 2', 'col 3', 'col 4', 'col 5']))
-        # darken the background of the table
-        st.markdown(""" <style>
-        table td:nth-child(1) {
-            background-color: #e6e6e6;
-        }
-        table td:nth-child(2) {
-            background-color: #e6e6e6;
-        }
-        table td:nth-child(3) {
-            background-color: #e6e6e6;
-        }
-        table td:nth-child(4) {
-            background-color: #e6e6e6;
-        }
-        table td:nth-child(5) {
-            background-color: #e6e6e6;
-        }
-        table td:nth-child(6) {
-        background-color: #e6e6e6;
-        }
-        </style> """, unsafe_allow_html=True)
+        show_all_possible_test_ids(list_ids)
 
     # create a object of the class
     mv = GridVisualize('MV', test_case)
@@ -263,15 +298,8 @@ if __name__ == '__main__':
     st.write("🟢Substation  🔴Demand node")
     # show the statistics in a table
     mv.show_statistics()
-    # process the shown nodes, transform the geometry to wkt
-    mv_show_nodes = deepcopy(mv.nodes)
-    mv_show_nodes.geometry.to_wkt()  # todo: not solved
     # add a checkbox that can be clicked to show the raw data
-    if st.checkbox('Show raw data of MV %s' % test_case):
-
-        # mv.nodes['str_geo'] = mv.nodes.geometry.apply(lambda x: wkt.dumps(x))
-        st.dataframe(pd.DataFrame(mv_show_nodes))  # todo: cannot scroll down
-        # st.write(mv.edges)
+    mv.show_raw_data()
 
     # --------------------------- LV network ---------------------------
     # set the title of the page
@@ -288,33 +316,7 @@ if __name__ == '__main__':
 
     # create a checkbox that can be clicked to show all possible test IDs
     if st.checkbox('Show all possible test IDs', key='LV_checkbox'):
-
-        # write them into a table of ten columns
-        if len(list_ids_lv) % 5 != 0:
-            # add some empty elements to make the length of the list a multiple of 10
-            list_ids_lv = list_ids_lv + [''] * (5 - len(list_ids_lv) % 5)
-        st.table(pd.DataFrame(np.array(list_ids_lv).reshape(-1, 5), columns=['col 1', 'col 2', 'col 3', 'col 4', 'col 5']))
-        # darken the background of the table
-        st.markdown(""" <style>
-            table td:nth-child(1) {
-                background-color: #e6e6e6;
-            }
-            table td:nth-child(2) {
-                background-color: #e6e6e6;
-            }
-            table td:nth-child(3) {
-                background-color: #e6e6e6;
-            }
-            table td:nth-child(4) {
-                background-color: #e6e6e6;
-            }
-            table td:nth-child(5) {
-                background-color: #e6e6e6;
-            }
-            table td:nth-child(6) {
-            background-color: #e6e6e6;
-            }
-            </style> """, unsafe_allow_html=True)
+        show_all_possible_test_ids(list_ids_lv)
 
     # create a object of the class
     lv = GridVisualize('LV', test_case_lv)
@@ -325,7 +327,5 @@ if __name__ == '__main__':
     # show the statistics in a table
     lv.show_statistics()
     # add a checkbox that can be clicked to show the raw data
-    if st.checkbox('Show raw data of MV %s' % test_case_lv):
-        st.write(lv.nodes)
-        st.write(lv.edges)
+    lv.show_raw_data()
 
