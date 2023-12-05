@@ -5,6 +5,8 @@ import pydeck as pdk
 import os
 import pandas as pd
 from copy import deepcopy
+from shapely import union_all
+import json
 
 
 def get_all_test_id(grid_type):
@@ -12,10 +14,21 @@ def get_all_test_id(grid_type):
     This function gets all the test IDs
     :return: list, all the test IDs
     """
-    # specify the path to the data
-    path = "data/" + grid_type + "/"
-    # get all the files in the path
-    list_files = os.listdir(path)
+    # todo: first click, store it in a dictionary, then read from the dictionary
+    if grid_type == 'MV':
+        path_base = grid_type + "/"
+        # get all the files in the path
+        list_files = os.listdir(path_base)
+
+    else:
+        path_base = grid_type + "/"
+        list_files = []
+        list_folders = os.listdir(path_base)
+        for j in range(len(list_folders)):
+            path = path_base + list_folders[j] + "/"
+            sub_files = os.listdir(path)
+            list_files += sub_files
+
     # get all the possible test IDs, that is remove the "_nodes" and "_edges" from the file names
     list_ids = [i[:-6] for i in list_files]
     # remove the duplicates
@@ -37,32 +50,7 @@ def show_all_possible_test_ids(id_list):
         # add some empty elements to make the length of the list a multiple of 10
         id_list = id_list + [''] * (5 - len(id_list) % 5)
     df = pd.DataFrame(np.array(id_list).reshape(-1, 5))
-    style = df.style.hide_index()
-    style.hide_columns()
-    st.write(style.to_html(), unsafe_allow_html=True)
-
-    # darken the background of the table
-    st.markdown(""" <style>
-    table td:nth-child(1) {
-        background-color: #e6e6e6;
-    }
-    table td:nth-child(2) {
-        background-color: #e6e6e6;
-    }
-    table td:nth-child(3) {
-        background-color: #e6e6e6;
-    }
-    table td:nth-child(4) {
-        background-color: #e6e6e6;
-    }
-    table td:nth-child(5) {
-        background-color: #e6e6e6;
-    }
-    table td:nth-child(6) {
-    background-color: #e6e6e6;
-    }
-    </style> """, unsafe_allow_html=True)
-    return
+    st.dataframe(df)
 
 
 class GridVisualize:
@@ -76,9 +64,27 @@ class GridVisualize:
         This function creates a box to type in the ID of the test case
         :return: selected nodes and edges
         """
-        path = "data/" + self.grid_type + "/"
-        file_n, file_e = self.test_id + "_nodes", self.test_id + "_edges"
-        nodes_gdf, edges_gdf = gpd.read_file(path + file_n), gpd.read_file(path + file_e)
+        if self.grid_type == 'MV':
+            path = self.grid_type + "/"
+        else:
+            path = self.grid_type + "/" + dict_test_id_folder[self.test_id] + "/"
+
+        if isinstance(self.test_id, str):
+            file_n, file_e = self.test_id + "_nodes", self.test_id + "_edges"
+            nodes_gdf, edges_gdf = gpd.read_file(path + file_n), gpd.read_file(path + file_e)
+        elif isinstance(self.test_id, list) & (len(self.test_id) != 0):
+            # consider the canton case
+            nodes_gdf = gpd.GeoDataFrame()
+            edges_gdf = gpd.GeoDataFrame()
+            for i in self.test_id:
+                sub_nodes = gpd.read_file(path + i + "_nodes")
+                sub_edges = gpd.read_file(path + i + "_edges")
+                nodes_gdf = pd.concat([nodes_gdf, sub_nodes])
+                edges_gdf = pd.concat([edges_gdf, sub_edges])
+        else:
+            st.write("There is no such grid within the canton")
+            raise ValueError
+
         # rename the x and y columns
         nodes_gdf.rename(columns={'x': 'longitude', 'y': 'latitude'}, inplace=True)
         # convert the x y (epsg=2056) to lat long with geopandas
@@ -271,29 +277,59 @@ class GridVisualize:
 
 
 if __name__ == '__main__':
+    data_path = 'data_processing/'
+    # ----------------------- Process LV ----------------------
+    # load the dictionary connecting the test ID and the folder name
+    with open(data_path + 'file_folder_lv.json') as json_file:
+        dict_test_id_folder = json.load(json_file)
+
+    # ----------------------- Process cantons ----------------------
+    # load the dictionary connecting the canton and the grid
+    with open(data_path + 'dict_canton_grid_MV.json') as json_file:
+        dict_canton_grid_mv = json.load(json_file)
+    with open(data_path + 'dict_canton_grid_LV.json') as json_file:
+        dict_canton_grid_lv = json.load(json_file)
+    list_canton_names = list(dict_canton_grid_mv.keys())
+
     # --------------------------- MV network ---------------------------
     # set the title of the page
     st.title("The MV network")
     # get all the test IDs
-    list_ids = get_all_test_id('MV')
+    with open(data_path + 'list_test_id_MV.json') as json_file:
+        list_ids_mv = json.load(json_file)
     # create a text field to type in the ID of the test case
-    st.subheader("Please enter the ID of the test case")
-    test_case = st.text_input("test case ID", list_ids[0], key='MV_text_input')
+    st.subheader("Please choose the test case")
+    # create a text field to type in canton name in the same line
+    cols = st.columns(2)
+    with cols[0]:
+        test_id = st.text_input('test case ID', list_ids_mv[0], key='MV_text_input_id')
+    with cols[1]:
+        test_canton = st.selectbox('canton name', list_canton_names, key='MV_text_input_canton')
+    # create a checkbox that can be clicked to show all possible test IDs
+    if st.checkbox('Show all possible test IDs', key='MV_checkbox'):
+        show_all_possible_test_ids(list_ids_mv)
+
+    # add a single checkbox to choose the test case
+    genre = st.radio(
+        "Which one do you want to show?",
+        ["***Single grid***", "***Canton region***"],
+        captions=["show selected test id.", "show the whole canton region"])
+
     # check if the test case ID is valid
-    if test_case not in list_ids:
+    if test_id not in list_ids_mv:
         st.write("Please enter a valid test case ID")
         st.stop()
 
-    # create a checkbox that can be clicked to show all possible test IDs
-    if st.checkbox('Show all possible test IDs', key='MV_checkbox'):
-        show_all_possible_test_ids(list_ids)
+    if genre == "***Single grid***":
+        test_case = test_id
+    else:
+        # get the test IDs in the canton
+        test_case = dict_canton_grid_mv[test_canton]
 
-    # create a object of the class
+    # create an object of the class
     mv = GridVisualize('MV', test_case)
-    # add a slider to adjust the pitch
-    pitch = st.slider('Pitch', 0, 60, 30)
     # draw the layers
-    mv_layers = mv.draw_layers(pitch=pitch)
+    mv_layers = mv.draw_layers()
     # add some legend for substation and demand nodes, including a logo with the color
     st.write("🟢Substation  🔴Demand node")
     # show the statistics in a table
@@ -305,7 +341,8 @@ if __name__ == '__main__':
     # set the title of the page
     st.title("The LV network")
     # get all the test IDs
-    list_ids_lv = get_all_test_id('LV')
+    with open(data_path + 'list_test_id_LV.json') as json_file:
+        list_ids_lv = json.load(json_file)
     # create a box to type in the ID of the test case
     st.subheader("Please enter the ID of the test case")
     test_case_lv = st.text_input("test case ID", list_ids_lv[0], key='LV_text_input')
@@ -327,5 +364,7 @@ if __name__ == '__main__':
     # show the statistics in a table
     lv.show_statistics()
     # add a checkbox that can be clicked to show the raw data
+    # lv.show_raw_data()
     lv.show_raw_data()
+
 
