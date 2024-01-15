@@ -197,8 +197,13 @@ class GridVisualize:
                     get_fill_color=['r', 'g', 'b'],
                     get_line_color=[0, 0, 0],
                 )
-        polygon_plot = pd.read_csv('data_processing/canton_coordinates_plot.csv')
-        polygon_plot['coordinates'] = polygon_plot['coordinates'].apply(ast.literal_eval)
+        if self.grid_type == 'MV':
+            polygon_plot = pd.read_csv('data_processing/canton_coordinates_plot.csv')
+            polygon_plot['coordinates'] = polygon_plot['coordinates'].apply(ast.literal_eval)
+        else:
+            # todo
+            polygon_plot = pd.read_csv('data_processing/canton_coordinates_plot_LV.csv')
+            polygon_plot['coordinates'] = polygon_plot['coordinates'].apply(ast.literal_eval)
         polygonlayer = pdk.Layer(
                     "PolygonLayer",
                     polygon_plot,
