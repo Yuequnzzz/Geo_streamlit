@@ -10,24 +10,18 @@ import pandas as pd
 from copy import deepcopy
 import json
 import ast
-from IPython.display import display
+import shutil
 
 
-# # center on Liberty Bell, add marker
-# m = folium.Map(location=[39.949610, -75.150282], zoom_start=16)
-# folium.Marker(
-#     [39.949610, -75.150282], popup="Liberty Bell", tooltip="Liberty Bell"
-# ).add_to(m)
-#
-# # call to render Folium map in Streamlit
-# st_data = st_folium(m, width=725)
-# # st.write(st_data)
-# st.write(st_data['last_clicked'])
-# if st_data['last_clicked']:
-#     # just show the lat/lon we clicked
-#     lat = st_data['last_clicked']['lat']
-#     lon = st_data['last_clicked']['lng']
-#     st.write('You clicked: ', lat, lon)
+def copy_files(source_folder, destination_folder, files_to_copy):
+    # Ensure the destination folder exists; create it if not.
+    os.makedirs(destination_folder, exist_ok=True)
+
+    # Copy each file to the destination folder.
+    for file_name in files_to_copy:
+        source_path = os.path.join(source_folder, file_name)
+        destination_path = os.path.join(destination_folder, file_name)
+        shutil.copy2(source_path, destination_path)
 
 
 class GridVisualize:
@@ -532,27 +526,21 @@ if __name__ == '__main__':
         # add a checkbox that can be clicked to show the raw data
         mv.show_raw_data()
 
-        # I wanna download the data with the selected test ID
         # add a button to download the data
-        if st.button('Download the data of selected test IDs'):
-            # create a folder to store the data
-            os.system('mkdir data_download')
-            # create empty geojson data file
-            for i in test_id:
-                os.system('touch data_download/' + i + '_nodes')
-                os.system('touch data_download/' + i + '_edges')
+        if st.button('Download the data of selected test IDs', key=None):
+            copy_files('MV/', 'data_download/', [i + "_nodes" for i in test_id]+[i + "_edges" for i in test_id])
+            # convert the files to zip
+            shutil.make_archive('data_download', 'zip', 'data_download')
+            shutil.rmtree('data_download')
+            # download the zip file
+            with open('data_download.zip', 'rb') as f:
+                file_download = f.read()
+                st.download_button(label='Download the data', data=file_download, file_name='data_download.zip',
+                                   mime='application/zip', key=None)
+            # remove the zip file
+            os.remove('data_download.zip')
 
-            # copy the data file in the MV folder to the data_processing folder
 
-            for i in test_id:
-                os.system('cp MV/' + i + '_nodes data_download/' + i + '_nodes')
-                os.system('cp MV/' + i + '_edges data_download/' + i + '_edges')
-            # # zip the files
-            # os.system('zip -r data_grids.zip data_download/')
-            # # download the zip file
-            # st.download_button(label='Download the data', data='data_processing.zip', mime='application/zip',
-            #                    file_name='data_grids.zip')
-            # but the zip is empty, why?
 
 
 
