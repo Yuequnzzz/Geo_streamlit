@@ -11,6 +11,7 @@ from copy import deepcopy
 import json
 import ast
 import shutil
+from pathlib import Path
 
 
 def copy_files(source_folder, destination_folder, files_to_copy):
@@ -433,6 +434,24 @@ class GridVisualize:
             st.dataframe(pd.DataFrame(show_edges))
         return
 
+    def download(self):
+        """
+        This function downloads the data
+        :return:
+        """
+        copy_files(self.grid_type + '/', 'data_download/', [i + "_nodes" for i in self.test_id])
+        copy_files(self.grid_type + '/', 'data_download/', [i + "_edges" for i in self.test_id])
+        # convert the files to zip
+        shutil.make_archive('data_download', 'zip', 'data_download')
+        shutil.rmtree('data_download')
+        # download the zip file
+        with open('data_download.zip', 'rb') as f:
+            file_download = f.read()
+            st.download_button(label='Download the data', data=file_download, file_name='data_download.zip',
+                               mime='application/zip', key=None)
+        # remove the zip file
+        os.remove('data_download.zip')
+
 
 if __name__ == '__main__':
     data_path = 'data_processing/'
@@ -459,6 +478,14 @@ if __name__ == '__main__':
         ["***Select grids by IDs***", "***Select grids by canton***"],
         captions=["show selected test ids", "show the whole canton region"],
         horizontal=True)
+    # add a button to jump to the help page
+    if st.button('Help? Show the user manual!'):
+        with open('usermanual.md', 'r') as f:
+            user_manual = f.read()
+            st.sidebar.markdown(
+                user_manual,
+                unsafe_allow_html=True,
+            )
     # add a divider
     st.markdown("---")
 
@@ -485,13 +512,13 @@ if __name__ == '__main__':
                     st.stop()
             else:
                 grid_option = False
-            if st.checkbox('Show substations', key='MV_test_id_checkbox'):
+            if st.checkbox('Show substation (grid name)', key='MV_test_id_checkbox'):
                 substation_option = True
                 if test_canton is None:
                     st.write("💥Warning: please select a canton")
                     st.stop()
 
-                #st.dataframe(table_ids_canton[table_ids_canton['canton_name'] == test_canton])
+                st.dataframe(table_ids_canton[table_ids_canton['canton_name'] == test_canton])
             else:
                 substation_option = False
 
@@ -501,10 +528,13 @@ if __name__ == '__main__':
             # draw the layers
             mv_layers = mv.draw_layers_folium(grid_show=grid_option, substation_show=substation_option)
 
-            # show the statistics in a table
-            mv.show_statistics()
-            # add a checkbox that can be clicked to show the raw data
-            mv.show_raw_data()
+            # # show the statistics in a table
+            # mv.show_statistics()
+            # # add a checkbox that can be clicked to show the raw data
+            # mv.show_raw_data()
+
+            # add a button to download the data
+            mv.download()
 
     # --------------------------- single grid --------------------------
     # single grid part, if the user chooses to show the single grid,
@@ -521,35 +551,13 @@ if __name__ == '__main__':
         mv = GridVisualize('MV', test_id)
         # draw the layers
         mv_layers = mv.draw_layers_folium(grid_show=True, substation_show=True)
-        # show the statistics in a table
-        mv.show_statistics()
-        # add a checkbox that can be clicked to show the raw data
-        mv.show_raw_data()
+        # # show the statistics in a table
+        # mv.show_statistics()
+        # # add a checkbox that can be clicked to show the raw data
+        # mv.show_raw_data()
 
         # add a button to download the data
-        if st.button('Download the data of selected test IDs', key=None):
-            copy_files('MV/', 'data_download/', [i + "_nodes" for i in test_id]+[i + "_edges" for i in test_id])
-            # convert the files to zip
-            shutil.make_archive('data_download', 'zip', 'data_download')
-            shutil.rmtree('data_download')
-            # download the zip file
-            with open('data_download.zip', 'rb') as f:
-                file_download = f.read()
-                st.download_button(label='Download the data', data=file_download, file_name='data_download.zip',
-                                   mime='application/zip', key=None)
-            # remove the zip file
-            os.remove('data_download.zip')
+        mv.download()
 
 
 
-
-
-# todo:
-# 1. let the user choose what to show
-# either click or select bar
-# 2. show the map
-# 3. download
-
-# todo: opacity of the background
-# todo: different color for different nodes
-# todo: the initial view of the map
