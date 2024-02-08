@@ -87,8 +87,8 @@ def classify_grids(region_geo, grid_type):
     #     nodes_gpd = gpd.read_file(path + file_name)
     #     # check if the nodes are in the canton
     #     for k, c in enumerate(cantons['NAME']):
-    #         nodes_gpd['in_canton'] = nodes_gpd['geometry'].within(cantons[cantons['NAME'] == c].geometry[k])
-    #         df_record.loc[i, c] = nodes_gpd['in_canton'].sum()
+    #         nodes_gpd['in_region'] = nodes_gpd['geometry'].within(cantons[cantons['NAME'] == c].geometry[k])
+    #         df_record.loc[i, c] = nodes_gpd['in_region'].sum()
 
     # # for each grid, find the canton with the largest number of nodes
     # grid_canton_belongs = df_record.idxmax(axis=1)
@@ -122,26 +122,27 @@ def classify_grids(region_geo, grid_type):
 
     # check which canton the transformer lies
     for k, c in enumerate(region_geo['NAME']):
-        df_transformer['in_canton'] = df_transformer['transformer'].values.within(region_geo[region_geo['NAME'] == c].geometry[k])
-        # if the in_canton is true, then the transformer belongs to the canton
-        df_transformer.loc[df_transformer['in_canton'], 'canton_name'] = c
-    # delete the in_canton column
-    df_transformer.drop(columns=['in_canton'], inplace=True)
+        df_transformer['in_region'] = df_transformer['transformer'].values.within(region_geo[region_geo['NAME'] == c].geometry[k])
+        # if the in_region is true, then the transformer belongs to the canton
+        df_transformer.loc[df_transformer['in_region'], 'region_name'] = c
+    # delete the in_region column
+    df_transformer.drop(columns=['in_region'], inplace=True)
 
     # return the index name of each canton, store it in a dictionary
     dict_canton_grid = {}
     for i in region_geo['NAME']:
-        dict_canton_grid[i] = list(df_transformer[df_transformer['canton_name'] == i].grid_id.values)
+        dict_canton_grid[i] = list(df_transformer[df_transformer['region_name'] == i].grid_id.values)
 
     # save the dictionary
     if grid_type == 'MV':
-        df_transformer[['grid_id', 'canton_name']].to_csv('data_processing/table_grid_canton_' + grid_type + '.csv', index=False)
+        df_transformer[['grid_id', 'region_name']].to_csv('data_processing/table_grid_canton_' + grid_type + '.csv', index=False)
 
         with open('data_processing/dict_canton_grid_' + grid_type + '.json', 'w') as fp:
             json.dump(dict_canton_grid, fp)
         print(f'Successfully saved the relationship between cantons and grids for {grid_type}')
 
     if grid_type == 'LV':
+        df_transformer[['grid_id', 'region_name']].to_csv('data_processing/table_grid_municipality_' + grid_type + '.csv', index=False)
         with open('data_processing/file_folder_lv.json', 'w') as fp:
             json.dump(dict_test_id_folder, fp)
         print(f'Successfully saved the relationship between test ID and folder name for {grid_type}')
@@ -157,67 +158,66 @@ def convert_multipolygon(multipolygon):
     return multipolygon_convex, holes
 
 
-
 if __name__ == '__main__':
     # get all the test IDs for MV and LV
-    # mv_test_list, lv_test_list = get_all_test_id('MV', save=True), get_all_test_id('LV', save=True)
+    mv_test_list, lv_test_list = get_all_test_id('MV', save=True), get_all_test_id('LV', save=True)
 
-    # # read the canton boundary
-    # canton_gpd = gpd.read_file('cantons.geojson')
-    # # get all the canton names
-    # list_canton_names = list(canton_gpd['NAME'].drop_duplicates())
-    # list_canton_names.sort()
-    # # create a new dataframe keeping the canton name and the geometry
-    # canton_geo = pd.DataFrame(columns=['NAME', 'geometry'])
-    # canton_geo['NAME'] = list_canton_names
-    # # get the union canton boundary
-    # for i in list_canton_names:
-    #     print(f'Processing: {i}')
-    #     canton_geo.loc[canton_geo['NAME'] == i, 'geometry'] = union_all(canton_gpd[canton_gpd['NAME'] == i].geometry)
-    # # see if the regions are overlapping
-    # for k, i in enumerate(list_canton_names):
-    #     for s, j in enumerate(list_canton_names):
-    #         if i != j:
-    #             overlap_binary = canton_geo[canton_geo["NAME"] == i].geometry[k].overlaps(canton_geo[canton_geo["NAME"] == j].geometry[s])
-    #             # print(f'canton {i} and canton {j} overlapping: {overlap_binary}')
-    #             if overlap_binary:
-    #                 raise ValueError(f'canton {i} and canton {j} are overlapping')
-    # print('There is no overlapping between cantons')
-    # # save the union canton boundary
-    # canton_geo = gpd.GeoDataFrame(canton_geo, geometry='geometry')
-    # canton_geo.crs = 'EPSG:2056'
-    # canton_geo.to_file('data_processing/canton_union.geojson', driver='GeoJSON')
-    #
-    # canton_boundary = gpd.read_file('data_processing/canton_union.geojson')
-    #
-    # # project the canton boundary to lat long
-    # canton_boundary['geometry'] = canton_boundary['geometry'].to_crs(epsg=4326)
-    #
-    # # convert the polygon to x, y
-    # canton_boundary['coordinates'] = 1  # set dummy value
-    # canton_boundary['coordinates'] = canton_boundary['coordinates'].astype(object)
-    # for i in range(len(canton_boundary)):
-    #     if canton_boundary['geometry'][i].geom_type == 'Polygon':
-    #         x, y = canton_boundary['geometry'][i].exterior.coords.xy
-    #         canton_boundary['coordinates'][i] = [[[x[j], y[j]] for j in range(len(x))]]
-    #     else:  # MultiPolygon
-    #         convex, holes = convert_multipolygon(canton_boundary['geometry'][i])
-    #         x, y = convex.exterior.coords.xy
-    #         multi_coordinates = [[[x[j], y[j]] for j in range(len(x))]]
-    #         for j in list(holes.geoms):
-    #             m, n = j.exterior.coords.xy
-    #             multi_coordinates.append([[m[l], n[l]] for l in range(len(m))])
-    #         canton_boundary['coordinates'][i] = multi_coordinates
-    #
-    # # calculate the centroid of each canton
-    # canton_boundary['centroid'] = canton_boundary['geometry'].centroid
-    # canton_boundary['centroid_x'] = canton_boundary['centroid'].x
-    # canton_boundary['centroid_y'] = canton_boundary['centroid'].y
-    # canton_boundary.drop(columns=['centroid'], inplace=True)
-    # canton_boundary.to_csv('data_processing/canton_coordinates_plot.csv', index=False)
-    #
-    # # classify the MV grids into different cantons
-    # classify_grids(canton_geo, 'MV')
+    # read the canton boundary
+    canton_gpd = gpd.read_file('cantons.geojson')
+    # get all the canton names
+    list_canton_names = list(canton_gpd['NAME'].drop_duplicates())
+    list_canton_names.sort()
+    # create a new dataframe keeping the canton name and the geometry
+    canton_geo = pd.DataFrame(columns=['NAME', 'geometry'])
+    canton_geo['NAME'] = list_canton_names
+    # get the union canton boundary
+    for i in list_canton_names:
+        print(f'Processing: {i}')
+        canton_geo.loc[canton_geo['NAME'] == i, 'geometry'] = union_all(canton_gpd[canton_gpd['NAME'] == i].geometry)
+    # see if the regions are overlapping
+    for k, i in enumerate(list_canton_names):
+        for s, j in enumerate(list_canton_names):
+            if i != j:
+                overlap_binary = canton_geo[canton_geo["NAME"] == i].geometry[k].overlaps(canton_geo[canton_geo["NAME"] == j].geometry[s])
+                # print(f'canton {i} and canton {j} overlapping: {overlap_binary}')
+                if overlap_binary:
+                    raise ValueError(f'canton {i} and canton {j} are overlapping')
+    print('There is no overlapping between cantons')
+    # save the union canton boundary
+    canton_geo = gpd.GeoDataFrame(canton_geo, geometry='geometry')
+    canton_geo.crs = 'EPSG:2056'
+    canton_geo.to_file('data_processing/canton_union.geojson', driver='GeoJSON')
+
+    canton_boundary = gpd.read_file('data_processing/canton_union.geojson')
+
+    # project the canton boundary to lat long
+    canton_boundary['geometry'] = canton_boundary['geometry'].to_crs(epsg=4326)
+
+    # convert the polygon to x, y
+    canton_boundary['coordinates'] = 1  # set dummy value
+    canton_boundary['coordinates'] = canton_boundary['coordinates'].astype(object)
+    for i in range(len(canton_boundary)):
+        if canton_boundary['geometry'][i].geom_type == 'Polygon':
+            x, y = canton_boundary['geometry'][i].exterior.coords.xy
+            canton_boundary['coordinates'][i] = [[[x[j], y[j]] for j in range(len(x))]]
+        else:  # MultiPolygon
+            convex, holes = convert_multipolygon(canton_boundary['geometry'][i])
+            x, y = convex.exterior.coords.xy
+            multi_coordinates = [[[x[j], y[j]] for j in range(len(x))]]
+            for j in list(holes.geoms):
+                m, n = j.exterior.coords.xy
+                multi_coordinates.append([[m[l], n[l]] for l in range(len(m))])
+            canton_boundary['coordinates'][i] = multi_coordinates
+
+    # calculate the centroid of each canton
+    canton_boundary['centroid'] = canton_boundary['geometry'].centroid
+    canton_boundary['centroid_x'] = canton_boundary['centroid'].x
+    canton_boundary['centroid_y'] = canton_boundary['centroid'].y
+    canton_boundary.drop(columns=['centroid'], inplace=True)
+    canton_boundary.to_csv('data_processing/canton_coordinates_plot.csv', index=False)
+
+    # classify the MV grids into different cantons
+    classify_grids(canton_geo, 'MV')
 
     # classify the LV grids into different municipalities
     municipality_gpd = gpd.read_file('nine_zones.geojson')
@@ -225,7 +225,7 @@ if __name__ == '__main__':
     municipality_geo = municipality_gpd[['NAME', 'KANTON', 'geometry']]
     municipality_geo = gpd.GeoDataFrame(municipality_geo, geometry='geometry')
     municipality_geo.crs = 'EPSG:2056'
+    municipality_geo.to_file('data_processing/municipality_boundary.geojson', driver='GeoJSON')
     classify_grids(municipality_geo, 'LV')
 
-    a = 1
 

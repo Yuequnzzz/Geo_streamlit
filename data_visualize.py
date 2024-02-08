@@ -198,7 +198,7 @@ class GridVisualize:
                     get_line_color=[0, 0, 0],
                 )
         if self.grid_type == 'MV':
-            polygon_plot = pd.read_csv('data_processing/canton_coordinates_plot.csv')
+            polygon_plot = pd.read_csv('../data_processing/canton_coordinates_plot.csv')
             polygon_plot['coordinates'] = polygon_plot['coordinates'].apply(ast.literal_eval)
         else:
             # todo
@@ -315,7 +315,7 @@ class GridVisualize:
 
 
 if __name__ == '__main__':
-    data_path = 'data_processing/'
+    data_path = '../data_processing/'
     # ----------------------- Process LV ----------------------
     # load the dictionary connecting the test ID and the folder name
     with open(data_path + 'file_folder_lv.json') as json_file:
@@ -463,7 +463,7 @@ if __name__ == '__main__':
     # canton_boundary['fill_color'] = canton_boundary['NAME'].apply(lambda x: canton_colors[x])
     # # create a polygon layer
     # canton_boundary.to_csv('data_processing/canton_coordinates_plot.csv', index=False)
-    data_plot = pd.read_csv('data_processing/canton_coordinates_plot.csv')
+    data_plot = pd.read_csv('../data_processing/canton_coordinates_plot.csv')
     data_plot['coordinates'] = data_plot['coordinates'].apply(ast.literal_eval)
     # data_plot.iloc[0, 'coordinates'] = data_plot[data_plot['NAME'] == 'Aargau']['coordinates'][0][1]
 
