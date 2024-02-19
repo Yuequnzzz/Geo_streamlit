@@ -11,6 +11,10 @@ import json
 import ast
 import shutil
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.stats import norm
+from sklearn.neighbors import KernelDensity
+from scipy.stats import gaussian_kde
 
 
 def copy_files(source_folder, destination_folder, files_to_copy):
@@ -49,7 +53,13 @@ class GridVisualize:
 
         if isinstance(self.test_id, str):
             file_n, file_e = self.test_id + "_nodes", self.test_id + "_edges"
-            nodes_gdf, edges_gdf = gpd.read_file(path + file_n), gpd.read_file(path + file_e)
+            # check if the edge file exists, if yes, create the empty dataframes
+            if not os.path.exists(path + file_e):
+                edges_gdf = gpd.GeoDataFrame()
+            else:
+                edges_gdf = gpd.read_file(path + file_e)
+            nodes_gdf = gpd.read_file(path + file_n)
+
         elif isinstance(self.test_id, list) and len(self.test_id) != 0:
             # consider the canton case or the multiple grids
             nodes_gdf = gpd.GeoDataFrame()
@@ -68,9 +78,13 @@ class GridVisualize:
 
                 # mark the grid
                 sub_nodes['grid_id'] = str(i)
-
-                sub_edges = gpd.read_file(path + i + "_edges")
                 nodes_gdf = pd.concat([nodes_gdf, sub_nodes])
+
+                # check if the edge file exists
+                if not os.path.exists(path + i + "_edges"):
+                    sub_edges = gpd.GeoDataFrame()
+                else:
+                    sub_edges = gpd.read_file(path + i + "_edges")
                 edges_gdf = pd.concat([edges_gdf, sub_edges])
 
         elif isinstance(self.test_id, list) and len(self.test_id) == 0:
@@ -84,8 +98,11 @@ class GridVisualize:
         # rename the x and y columns
         nodes_gdf.rename(columns={'x': 'longitude', 'y': 'latitude'}, inplace=True)
         # convert the x y (epsg=2056) to lat long with geopandas
-        edges_gdf['geometry'] = edges_gdf['geometry'].to_crs(epsg=4326)
         nodes_gdf['geometry'] = nodes_gdf['geometry'].to_crs(epsg=4326)
+        if edges_gdf.empty:
+            pass
+        else:
+            edges_gdf['geometry'] = edges_gdf['geometry'].to_crs(epsg=4326)
         # get the lat long from the geometry
         nodes_gdf['latitude'] = nodes_gdf['geometry'].y
         nodes_gdf['longitude'] = nodes_gdf['geometry'].x
@@ -96,9 +113,14 @@ class GridVisualize:
         This function gets the nodes in the edges
         :return: list, the nodes in the edges
         """
-        list_path = [list(i.coords) for i in self.edges.geometry]
-        list_routed_nodes = [item for sublist in list_path for item in sublist]
-        return list_routed_nodes
+        # first, check if the edges are empty
+        if self.edges.empty:
+            # in this case, return an empty list; use the nodes to calculate the initial view instead
+            return []
+        else:
+            list_path = [list(i.coords) for i in self.edges.geometry]
+            list_routed_nodes = [item for sublist in list_path for item in sublist]
+            return list_routed_nodes
 
     def get_initial_middle_point(self):
         """
@@ -110,8 +132,12 @@ class GridVisualize:
         max_lon_n, min_lon_n = self.nodes['longitude'].max(), self.nodes['longitude'].min()
         # find the max and min of the lat and long in the edges
         list_routed_nodes = self.get_routed_nodes_in_edges()
-        max_lat_e, min_lat_e = max([i[1] for i in list_routed_nodes]), min([i[1] for i in list_routed_nodes])
-        max_lon_e, min_lon_e = max([i[0] for i in list_routed_nodes]), min([i[0] for i in list_routed_nodes])
+        if not list_routed_nodes:
+            # in this case, use the nodes to calculate the initial view instead
+            max_lat_e, min_lat_e, max_lon_e, min_lon_e = max_lat_n, min_lat_n, max_lon_n, min_lon_n
+        else:
+            max_lat_e, min_lat_e = max([i[1] for i in list_routed_nodes]), min([i[1] for i in list_routed_nodes])
+            max_lon_e, min_lon_e = max([i[0] for i in list_routed_nodes]), min([i[0] for i in list_routed_nodes])
         # get the midpoint
         max_lat, min_lat = max(max_lat_n, max_lat_e), min(min_lat_n, min_lat_e)
         max_lon, min_lon = max(max_lon_n, max_lon_e), min(min_lon_n, min_lon_e)
@@ -275,16 +301,18 @@ class GridVisualize:
                 zoom_on_click=True,
             ).add_to(m)
             # draw the edges
-            self.edges['geometry'] = self.edges['geometry'].to_crs(epsg=4326)
-            raw_edges = [list(i.coords) for i in self.edges.geometry]
-            raw_edges = [[[i[1], i[0]] for i in j] for j in raw_edges]
+            # check if the edges are empty
+            if not self.edges.empty:
+                self.edges['geometry'] = self.edges['geometry'].to_crs(epsg=4326)
+                raw_edges = [list(i.coords) for i in self.edges.geometry]
+                raw_edges = [[[i[1], i[0]] for i in j] for j in raw_edges]
 
-            folium.PolyLine(
-                locations=raw_edges,
-                color="green",
-                weight=2,
-                opacity=1,
-            ).add_to(m)
+                folium.PolyLine(
+                    locations=raw_edges,
+                    color="green",
+                    weight=2,
+                    opacity=1,
+                ).add_to(m)
 
         # # check where the last click was
         # st_data = st_folium(m, key='nodes_edges', width=1200, height=600)
@@ -477,13 +505,22 @@ class GridVisualize:
         """
         if self.grid_type == 'MV':
             copy_files(self.grid_type + '/', 'data_download/', [i + "_nodes" for i in self.test_id])
-            copy_files(self.grid_type + '/', 'data_download/', [i + "_edges" for i in self.test_id])
+            # check if all the edge files exists
+            for i in self.test_id:
+                if not os.path.exists(self.grid_type + '/' + i + "_edges"):
+                    pass
+                else:
+                    copy_files(self.grid_type + '/', 'data_download/', [i + "_edges"])
+            # copy_files(self.grid_type + '/', 'data_download/', [i + "_edges" for i in self.test_id])
         else:
             with open('data_processing/file_folder_lv.json') as json_file:
                 dict_test_id_folder = json.load(json_file)
             for i in self.test_id:
                 copy_files(self.grid_type + '/' + dict_test_id_folder[i] + '/', 'data_download/', [i + "_nodes"])
-                copy_files(self.grid_type + '/' + dict_test_id_folder[i] + '/', 'data_download/', [i + "_edges"])
+                if not os.path.exists(self.grid_type + '/' + dict_test_id_folder[i] + '/' + i + "_edges"):
+                    pass
+                else:
+                    copy_files(self.grid_type + '/' + dict_test_id_folder[i] + '/', 'data_download/', [i + "_edges"])
         # convert the files to zip
         shutil.make_archive('data_download', 'zip', 'data_download')
         shutil.rmtree('data_download')
@@ -504,15 +541,24 @@ class GridVisualize:
         total_dmd = self.get_statistics_by_grid()
         # show the histogram of the demand
         demand_arr = np.array([t for t in total_dmd.values()])
-        fig, ax = plt.subplots()
-        ax.hist(demand_arr, bins=20)
+        fig, ax_his = plt.subplots()
+        n, bins, patches = ax_his.hist(demand_arr)
         # modify the axis
-        ax.set_xlabel('Total active power demand (kW)')
-        ax.set_ylabel('Number of grids')
-        ax.yaxis.get_major_locator().set_params(integer=True)
-        # separate the bars
-        plt.tight_layout()
-        
+        ax_his.set_xlabel('Total active power demand (kW)')
+        ax_his.set_ylabel('Number of grids')
+        ax_his.yaxis.get_major_locator().set_params(integer=True)
+
+        # show the density with the shared x axis
+        ax_density = ax_his.twinx()
+        xs = np.linspace(demand_arr.min(), demand_arr.max(), 1000)
+
+        kde = KernelDensity(bandwidth=1.0, kernel='gaussian', )
+        kde.fit(demand_arr[:, None])
+        logprob = kde.score_samples(xs[:, None])
+        ax_density.plot(xs, np.exp(logprob), color='orange')
+
+        # kde = gaussian_kde(demand_arr, bw_method='silverman')
+        # ax_density.plot(xs, kde(xs), color='orange')
 
         st.pyplot(fig)
 

@@ -82,25 +82,11 @@ def mv_page():
                     # remove the hint above
                     placeholder.empty()
 
-
-        # # add the second form
-        # with st.form(key='MV_form_canton_statistics'):
-        #
-        #     show_submit = st.form_submit_button('Show the statistics')
-        #     if not show_submit:
-        #         st.stop()
-        #     if show_submit:
-        #         mv.show_histogram()
-
-        # add a checkbox to show the statistics
         if mv:
             # show the statistics
             mv.show_histogram()
             # add a button to download the data
             mv.download()
-        # # add a button to download the data
-        # if mv:
-        #     mv.download()
 
     # --------------------------- single grid --------------------------
     # single grid part, if the user chooses to show the single grid,
@@ -110,25 +96,22 @@ def mv_page():
         test_id = st.multiselect('test case IDs', table_ids_canton['grid_id'].values, key='MV_multiselect_grid_id')
         # create an object of the class
         mv = GridVisualize('MV', test_id)
-        # with st.form(key='MV_form_grid_id'):
-        #     submitted = st.form_submit_button('Show the map')
-        #     if submitted:
-        #         # when the app is running, give the hint that the map is loading
-        #         placeholder = st.empty()
-        #         placeholder.write("The map is loading..Please wait for a few seconds..")
-        #         # draw the layers
-        #         mv.draw_layers_folium(substation_show=True, grid_show=True)
-        #         # remove the hint above
-        #         placeholder.empty()
-        #
-        # # # add a checkbox to show the statistics
-        # # if st.checkbox('Show the statistics of the selected test IDs', key='MV_checkbox_show_multi_grid'):
-        # #
-        # # add a button to download the data
-        # mv.download()
+        with st.form(key='MV_form_grid_id'):
+            submitted = st.form_submit_button('Show the map')
+            if submitted:
+                # when the app is running, give the hint that the map is loading
+                placeholder = st.empty()
+                placeholder.write("The map is loading..Please wait for a few seconds..")
+                # draw the layers
+                mv.draw_layers_folium(substation_show=True, grid_show=True)
+                # remove the hint above
+                placeholder.empty()
 
-        mv.show_histogram()
-
+        if submitted:
+            # show the statistics
+            mv.show_histogram()
+            # add a button to download the data
+            mv.download()
 
 
 if __name__ == '__main__':
