@@ -8,3 +8,4 @@ folium==0.14.0
 streamlit-folium==0.16.0
 leafmap~=0.30.0
 shapely~=2.0.1
+scipy~=1.7.3
