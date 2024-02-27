@@ -63,7 +63,16 @@ def lv_page():
                         st.write("💥Warning: please select a municipality")
                         st.stop()
 
-                    st.dataframe(table_ids_municipality[table_ids_municipality['region_name'] == test_municipality])
+                    table_to_show = table_ids_municipality[table_ids_municipality['region_name'] == test_municipality]
+                    with open(data_path + 'dict_lv_mv.json') as json_file:
+                        dict_lv_mv = json.load(json_file)
+                    table_to_show['mv_supplier'] = table_to_show['grid_id'].map(dict_lv_mv)
+                    st.dataframe(table_to_show)
+                    mv_supplier_list = list(table_to_show['mv_supplier'].unique())
+                    # remove the nan value
+                    mv_supplier_list = [x for x in mv_supplier_list if str(x) != 'nan']
+                    st.write("This region is supplied by the following MV suppliers: ")
+                    st.write(*mv_supplier_list, sep=",")
                 else:
                     substation_option = False
             lv = None
