@@ -5,7 +5,7 @@ import time
 
 def mv_page():
 
-    data_path = 'data_processing/'
+    data_path = "../" + 'data_processing/data_processed/'
 
     # ----------------------- Process cantons ----------------------
     # load the dictionary connecting the canton and the grid
@@ -35,9 +35,6 @@ def mv_page():
     st.markdown("---")
 
     # --------------------------- canton region --------------------------
-    # create a session state
-    if 'stage' not in st.session_state:
-        st.session_state['stage'] = 'story_generation'
 
     if genre == "***Select grids by canton***":
 
@@ -108,8 +105,8 @@ def mv_page():
                 placeholder.empty()
 
         if submitted:
-            # show the statistics
-            mv.show_histogram()
+            # # show the statistics
+            # mv.show_histogram()
             # add a button to download the data
             mv.download()
 
