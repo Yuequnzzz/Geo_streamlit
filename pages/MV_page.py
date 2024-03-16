@@ -5,7 +5,7 @@ import time
 
 def mv_page():
 
-    data_path = "../" + 'data_processing/data_processed/'
+    data_path = "..\\" + 'data_processing\\data_processed\\'
 
     # ----------------------- Process cantons ----------------------
     # load the dictionary connecting the canton and the grid
