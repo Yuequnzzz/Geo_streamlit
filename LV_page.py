@@ -3,7 +3,7 @@ from grid_class import *
 
 def lv_page():
 
-    data_path = "../" + 'data_processing/data_processed/'
+    data_path = 'data_processing/'
 
     # ----------------------- Process municipality ----------------------
     # load the dictionary connecting the municipality and the grid
@@ -120,8 +120,8 @@ def lv_page():
                 placeholder.empty()
 
         if submitted:
-            # # show the statistics
-            # lv.show_histogram()
+            # show the statistics
+            lv.show_histogram()
             # add a button to download the data
             lv.download()
 

@@ -41,7 +41,7 @@ class GridVisualize:
         """
         path = None
         if self.grid_type == 'MV':
-            path = "../" + self.grid_type + "/"
+            path = self.grid_type + "/"
         else:
             # ----------------------- Process LV ----------------------
             # load the dictionary connecting the test ID and the folder name
@@ -49,7 +49,7 @@ class GridVisualize:
                 dict_test_id_folder = json.load(json_file)
             # consider the path for LV single grid
             if isinstance(self.test_id, str):
-                path = "../" + self.grid_type + "/" + dict_test_id_folder[self.test_id] + "/"
+                path = self.grid_type + "/" + dict_test_id_folder[self.test_id] + "/"
 
         if isinstance(self.test_id, str):
             file_n, file_e = self.test_id + "_nodes", self.test_id + "_edges"
@@ -68,7 +68,7 @@ class GridVisualize:
                 if self.grid_type == 'MV':
                     pass
                 else:
-                    path = "../" + self.grid_type + "/" + dict_test_id_folder[i] + "/"
+                    path = self.grid_type + "/" + dict_test_id_folder[i] + "/"
 
                 sub_nodes = gpd.read_file(path + i + "_nodes")
                 # add a column to mark the substation
@@ -220,11 +220,11 @@ class GridVisualize:
             get_line_color=[0, 0, 0],
         )
         if self.grid_type == 'MV':
-            polygon_plot = pd.read_csv("../" + 'data_processing/data_processed/canton_coordinates_plot.csv')
+            polygon_plot = pd.read_csv('data_processing/canton_coordinates_plot.csv')
             polygon_plot['coordinates'] = polygon_plot['coordinates'].apply(ast.literal_eval)
         else:
             # todo
-            polygon_plot = pd.read_csv("../" + 'data_processing/data_processed/canton_coordinates_plot_LV.csv')
+            polygon_plot = pd.read_csv('data_processing/canton_coordinates_plot_LV.csv')
             polygon_plot['coordinates'] = polygon_plot['coordinates'].apply(ast.literal_eval)
         polygonlayer = pdk.Layer(
             "PolygonLayer",
@@ -326,13 +326,13 @@ class GridVisualize:
         # point = gpd.points_from_xy([lon], [lat])
 
         # load the canton boundary
-        canton_boundary = gpd.read_file("../" + 'data_processing/data_processed/canton_union.geojson')
+        canton_boundary = gpd.read_file('data_processing/canton_union.geojson')
         canton_boundary['geometry'] = canton_boundary['geometry'].to_crs(epsg=4326)
         # add the canton centroid
         canton_boundary['centroid'] = canton_boundary['geometry'].centroid
 
         # load the municipality boundary
-        municipality_boundary = gpd.read_file("../" + 'data_processing/data_processed/municipality_boundary.geojson')
+        municipality_boundary = gpd.read_file('data_processing/municipality_boundary.geojson')
         municipality_boundary['geometry'] = municipality_boundary['geometry'].to_crs(epsg=4326)
         # add the municipality centroid
         municipality_boundary['centroid'] = municipality_boundary['geometry'].centroid
@@ -504,23 +504,23 @@ class GridVisualize:
         :return:
         """
         if self.grid_type == 'MV':
-            copy_files("../" + self.grid_type + '/', 'data_download/', [i + "_nodes" for i in self.test_id])
+            copy_files(self.grid_type + '/', 'data_download/', [i + "_nodes" for i in self.test_id])
             # check if all the edge files exists
             for i in self.test_id:
-                if not os.path.exists("../" + self.grid_type + '/' + i + "_edges"):
+                if not os.path.exists(self.grid_type + '/' + i + "_edges"):
                     pass
                 else:
-                    copy_files("../" + self.grid_type + '/', 'data_download/', [i + "_edges"])
-            # copy_files("../" + self.grid_type + '/', 'data_download/', [i + "_edges" for i in self.test_id])
+                    copy_files(self.grid_type + '/', 'data_download/', [i + "_edges"])
+            # copy_files(self.grid_type + '/', 'data_download/', [i + "_edges" for i in self.test_id])
         else:
             with open('data_processing/file_folder_lv.json') as json_file:
                 dict_test_id_folder = json.load(json_file)
             for i in self.test_id:
-                copy_files("../" + self.grid_type + '/' + dict_test_id_folder[i] + '/', 'data_download/', [i + "_nodes"])
-                if not os.path.exists("../" + self.grid_type + '/' + dict_test_id_folder[i] + '/' + i + "_edges"):
+                copy_files(self.grid_type + '/' + dict_test_id_folder[i] + '/', 'data_download/', [i + "_nodes"])
+                if not os.path.exists(self.grid_type + '/' + dict_test_id_folder[i] + '/' + i + "_edges"):
                     pass
                 else:
-                    copy_files("../" + self.grid_type + '/' + dict_test_id_folder[i] + '/', 'data_download/', [i + "_edges"])
+                    copy_files(self.grid_type + '/' + dict_test_id_folder[i] + '/', 'data_download/', [i + "_edges"])
         # convert the files to zip
         shutil.make_archive('data_download', 'zip', 'data_download')
         shutil.rmtree('data_download')
